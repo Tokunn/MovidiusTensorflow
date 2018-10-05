@@ -57,13 +57,12 @@ def predict(device, graph, cap, input_fifo, output_fifo):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = np.asarray(frame) * (1.0/255.0)
         #frame = np.reshape(frame, (1, IMGSIZE, IMGSIZE, 3))
-        frame = frame.astype(np.float32)
         print("Input shape", frame.shape)
         time1 = time.time()
         print("Prep{:.3f}".format((time1 - start)*1000), end=' : ')
 
         # Write the tensor to the input_fifo and queue an inference
-        graph.queue_inference_with_fifo_elem(input_fifo, output_fifo, frame, 'user object')
+        graph.queue_inference_with_fifo_elem(input_fifo, output_fifo, frame.astype(np.float32), 'user object')
         output, user_obj = output_fifo.read_elem()
         predict = np.argmax(output)
 
