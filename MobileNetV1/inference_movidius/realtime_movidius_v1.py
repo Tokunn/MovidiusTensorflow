@@ -63,7 +63,6 @@ def predict(device, graph, cap):
         start = time.time()
         ret, frame = cap.read()
         frame = cv2.resize(frame, (IMGSIZE,IMGSIZE))
-        print("shape", frame.shape)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = np.asarray(frame) * (1.0/255.0)
         #frame = np.clip(frame, 0.0, 0.6)
