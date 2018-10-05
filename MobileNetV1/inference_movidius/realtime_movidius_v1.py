@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
+
 #------ parameters --------#
-FPS = 40
-#IMGSIZE = 224
-IMGSIZE = 160
+FPS = 10
+IMGSIZE = 224
+#IMGSIZE = 160
 
 SHOW_IMGS = False
 #--------------------------#
@@ -32,9 +34,10 @@ if args.v and args.v=='T':
 
 
 
-GRAPH_FILE = './models/mvnccheck_graph'
+GRAPH_FILE = '../graphs/mbnet224_1.graph'
 if IMGSIZE == 160:
-    GRAPH_FILE = './models/graph160'
+    GRAPH_FILE = '../graphs/mbnet160_05.graph'
+
 
 
 IMAGENET1000 = False
@@ -59,7 +62,8 @@ def predict(device, graph, cap):
     while True:
         start = time.time()
         ret, frame = cap.read()
-        #frame = cv2.resize(frame, (224,224))
+        frame = cv2.resize(frame, (IMGSIZE,IMGSIZE))
+        print("shape", frame.shape)
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = np.asarray(frame) * (1.0/255.0)
         #frame = np.clip(frame, 0.0, 0.6)
@@ -103,10 +107,11 @@ if __name__ == '__main__':
     device.OpenDevice()
 
     cap = cv2.VideoCapture(0)
+    print("camera open", cap.isOpened())
     cap.set(cv2.CAP_PROP_FPS, FPS)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, IMGSIZE)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, IMGSIZE)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 224)#IMGSIZE)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 224)#IMGSIZE)
+    #cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
 
     # Load graph file data
     with open(GRAPH_FILE, 'rb') as f:
