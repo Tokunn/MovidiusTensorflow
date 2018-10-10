@@ -115,10 +115,13 @@ dmypy.json
 
 # tensorflow
 *.index
-*.data*
+*.data-*
 *.meta
+logs/
 
 # movidius
 graph/
 models/
 *.graph
+*.gv
+*.gv.svg
