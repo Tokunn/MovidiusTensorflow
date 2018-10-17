@@ -49,22 +49,8 @@ with open(CATEGORIES_FILE, 'r') as f:
 print("Graph file from", GRAPH_FILE)
 
 
-TMP_IMG_NAME = './tmpimage.png'
-
-
-class MeasureTime(object):
-    def __init__(self, label, verbose):
-        self.start = time.time()
-        self.label = label
-        self.verbose = verbose
-    def stop_ms(self):
-        return (time.time() - self.start)*1000
-    def show(self):
-        if self.verbose:
-            print(self.label + "{:.3f}".format(self.stop_ms()), end=' : ')
-
-
 def camThread(results, frameBuffer):
+    print("camThread start")
     res = ''
     window_name = "Frame"
 
@@ -84,69 +70,51 @@ def camThread(results, frameBuffer):
         s, color_image = cam.read()
         if not s:
             continue
-        color_image = cv2.resize(color_image, (IMGSIZE, IMGSIZE)) # TODO BGR2RGB 1/255
+        color_image = cv2.resize(color_image, (IMGSIZE, IMGSIZE))
+        color_image = cv2.cvtColor(color_image, cv2.COLOR_BGR2RGB)
+        #color_image = np.asarray(color_image) * (1.0/255.0)
         if frameBuffer.full():
             frameBuffer.get()
         frameBuffer.put(color_image.copy())
 
         if not results.empty():
-            res = results.get(False)
+            output = results.get(False)
+            #prep = np.argmax(output)
+            #res = "{cate}: {prob}".format(categories[prep], output[prep])
+            res = "{cate}".format(output)
         cv2.putText(color_image, res, (0,50), cv2.FONT_HERSHEY_PLAIN, 2, (255,0,0), 3, cv2.LINE_AA)
 
         cv2.imshow(window_name, color_image)
         cv2.waitKey(1)
 
+def inferenceThread(results, frameBuffer, devnum):
+    print("inferenceThread start")
 
-def prepare_img(cap):
-    tmr = MeasureTime("Prep", verbose=VERBOSE)
-    ret, frame = cap.read()
-    frame = cv2.resize(frame, (IMGSIZE,IMGSIZE))
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame = np.asarray(frame) * (1.0/255.0)
-    tmr.show()
-    return frame
+    # Load graph file data
+    with open(GRAPH_FILE, 'rb') as f:
+        graph_file_buffer = f.read()
 
-def predict(graph, frame):
-    tmr = MeasureTime("Pred", verbose=VERBOSE)
-    # Write the tensor to the input_fifo and queue an inference
-    graph.LoadTensor(frame.astype(np.float16), None)
-    output, userobj = graph.GetResult()
-    predict_resl = np.argmax(output)
-    tmr.show()
-    return predict_resl, output
+    device_name = mvnc.EnumerateDevices()[devnum]
+    device = mvnc.Device(device_name)
+    print("open")
+    device.OpenDevice()
 
-def show_img(img, text):
-    tmr = MeasureTime("Post", verbose=VERBOSE)
-    if SHOW_IMGS:
-        cv2.putText(img, text, (0,50), cv2.FONT_HERSHEY_PLAIN, 2, (255,0,0), 3, cv2.LINE_AA)
-        cv2.imshow('Frame', img)
-        cv2.waitKey(1)
-    tmr.show()
-
-
-def main(device, graph, cap):
-    print("Start predicting ...")
+    graph = device.AllocateGraph(graph_file_buffer)
 
     while True:
-        start = time.time()
+        if frameBuffer.empty():
+            continue
 
-        img = prepare_img(cap)  # Prepare Image
+        frame = frameBuffer.get()
+        graph.LoadTensor(frame.astype(np.float16), None)
+        output, userobj = graph.GetResult()
+        predict_resl = np.argmax(output)
 
-        result, output = predict(graph, img)    # Predict Image
+        results.put(categories[predict_resl])
 
-        text = "{} {:.3f}".format(categories[result], output[result]) 
-        print(text, end=' : ')
 
-        show_img(img, text)     # Show Image
 
-        totl = time.time() - start
-        print("Totl{:.3f} : FPS{:.2f}".format(totl*1000, 1/totl), end=' : ')
-        print('')
-
-    return output
-
-def mlt_main():
-    print("Start mlt_main...")
+def main():
     processes = []
     try:
         frameBuffer = mp.Queue(10)
@@ -155,6 +123,13 @@ def mlt_main():
         p = mp.Process(target=camThread, args=(results, frameBuffer), daemon=True)
         p.start()
         processes.append(p)
+
+        n_devices = len(mvnc.EnumerateDevices())
+        print("{} devices found".format(n_devices))
+        for devnum in range(n_devices):
+            p = mp.Process(target=inferenceThread, args=(results, frameBuffer, devnum), daemon=True)
+            p.start()
+            processes.append(p)
 
         while True:
             time.sleep(1)
@@ -166,35 +141,4 @@ def mlt_main():
 
 
 if __name__ == '__main__':
-    mlt_main()
-
-
-if not __name__ == '__main__':
-    devices = mvnc.EnumerateDevices()
-    print("%d devices found" % len(devices))
-    device = mvnc.Device(devices[0])
-    device.OpenDevice()
-
-    cap = cv2.VideoCapture(0)
-    print("camera open", cap.isOpened())
-    cap.set(cv2.CAP_PROP_FPS, FPS)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 224)#IMGSIZE)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 224)#IMGSIZE)
-    #cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-
-    # Load graph file data
-    with open(GRAPH_FILE, 'rb') as f:
-        graph_file_buffer = f.read()
-
-    # Initialize a Graph object
-    graph = device.AllocateGraph(graph_file_buffer)
-
-    try:
-        main(device, graph, cap)
-    except KeyboardInterrupt:
-        print('exit')
-        graph.DeallocateGraph()
-        device.CloseDevice()
-        cap.release()
-        cv2.destroyAllWindows()
-        sys.exit()
+    main()
