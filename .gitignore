@@ -125,3 +125,11 @@ models/
 *.graph
 *.gv
 *.gv.svg
+
+# keras
+*.h5
+
+# Image
+*.png
+*.jpg
+*.jpeg
