@@ -131,5 +131,12 @@ models/
 
 # Image
 *.png
+*.PNG
 *.jpg
+*.JPG
 *.jpeg
+*.JPEG
+
+# zip
+*.zip
+*.ZIP
