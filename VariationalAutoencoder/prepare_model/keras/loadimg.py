@@ -5,6 +5,8 @@
 import os, glob
 import numpy as np
 
+from tqdm import tqdm
+
 from keras.preprocessing.image import load_img, img_to_array
 from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
@@ -22,13 +24,13 @@ def get_dirlist(dirpath):
     return sorted(files_dir)
 
 def load_images_from_onefolder(dirpath, imgsize_x, imgsize_y, grayscale):
-    print("dirpath", dirpath)
+    print("dirpath", dirpath, flush=True)
     imgName_list = glob.glob(os.path.join(dirpath, '*.jpg'))
     imgName_list += glob.glob(os.path.join(dirpath, '*.JPG'))
     imgName_list += glob.glob(os.path.join(dirpath, '*.png'))
     imgName_list += glob.glob(os.path.join(dirpath, '*.PNG'))
     x = []
-    for imgName in imgName_list:
+    for imgName in tqdm(imgName_list):
         img = load_img(imgName, target_size=(imgsize_y, imgsize_x), grayscale=grayscale)
         img = img_to_array(img) # Numpy list
         x.append(img)
@@ -76,13 +78,19 @@ def loadimg(
     if onehot:
         y = np_utils.to_categorical(y, n_class)
         
-    if not (train_ratio==1):    
-        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=train_ratio, test_size=1-train_ratio)
-    else:
+    if (train_ratio==1): 
         x_train = x
         y_train = y
         x_test = []
         y_test = []
+    elif (train_ratio==0):
+        x_train = []
+        y_train = []
+        x_test = x
+        y_test = y
+    else:
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=train_ratio, test_size=1-train_ratio)
+        
         
     return x_train, x_test, y_train, y_test, n_class
 
