@@ -76,7 +76,14 @@ def loadimg(
     if onehot:
         y = np_utils.to_categorical(y, n_class)
         
-    x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=train_ratio, test_size=1-train_ratio)
+    if not (train_ratio==1):    
+        x_train, x_test, y_train, y_test = train_test_split(x, y, train_size=train_ratio, test_size=1-train_ratio)
+    else:
+        x_train = x
+        y_train = y
+        x_test = []
+        y_test = []
+        
     return x_train, x_test, y_train, y_test, n_class
 
 if __name__ == '__main__':
